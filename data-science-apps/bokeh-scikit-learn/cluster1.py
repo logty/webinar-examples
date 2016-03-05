@@ -7,10 +7,12 @@ from sklearn.preprocessing import StandardScaler
 
 from bokeh.plotting import Figure
 from bokeh.palettes import Spectral6
-from bokeh.models.widgets import VBox, HBox, Select
+from bokeh.models.widgets import VBox, HBox, Select, TextInput, List, Component, Instance
 
 from bokeh.models import ColumnDataSource
 from bokeh.io import curdoc
+
+import inspect
 
 # SET UP DATA
 np.random.seed(0)
@@ -37,12 +39,23 @@ plot = Figure(plot_width=400, plot_height=400, title=None,
 plot.circle('x', 'y', fill_color='colors', line_color=None, source=source)
 
 # SET UP WIDGET
-clustering_algorithms= ['Select Algorithm',
+'''clustering_algorithms= ['Select Algorithm',
     'MiniBatchKMeans', 'AffinityPropagation', 'MeanShift',
     'SpectralClustering', 'Ward', 'AgglomerativeClustering',
-    'DBSCAN', 'Birch']
+    'DBSCAN', 'Birch']'''
+clustering_algorithms = []
+clustering_name_to_obj_dict = {}
+for name, obj in inspect.getmembers(cluster):
+    if inspect.isclass(obj):
+        clustering_algorithms += [name]
+        clustering_name_to_obj_dict[name] = obj
+
 
 dropdown = Select(value='Select Algorithm', options=clustering_algorithms)
+
+clustering_options = Instance(VBox)
+temp_chillun = []
+options = List(Instance(Component))
 
 # SET UP CALLBACKS
 def update_data(attrname, old, new):
@@ -75,6 +88,22 @@ def update_data(attrname, old, new):
         model = cluster.DBSCAN(eps=.2)
     else:
         print('No Algorithm selected')
+
+    
+    argspec = inspect.getargspec(clustering_name_to_obj_dict[algorithm].__init__)
+    for i in range(1,len(argspec.args)):
+        temp_chillun.append(TextInput(title=argspec.args[i], value=str(argspec.defaults[i-1])))
+
+    clustering_options.children = temp_chillun
+
+    print "/////////////////////////////////////////////////////"
+    print argspec
+    print argspec.args
+    print temp_chillun
+    print "/////////////////////////////////////////////////////"
+
+    #clustering_options = HBox(children=[options])
+
     model.fit(X)
 
     if hasattr(model, 'labels_'):
@@ -90,7 +119,9 @@ def update_data(attrname, old, new):
 dropdown.on_change('value', update_data)
 
 # SET UP LAYOUT
+clustering_options = VBox(*temp_chillun)
 inputs = HBox(children=[dropdown])
 plots = HBox(children=[plot])
 # add to document
-curdoc().add_root(VBox(children=[inputs, plots]))
+curdoc().add_root(VBox(children=[inputs, plots, clustering_options]))
+update_data()
